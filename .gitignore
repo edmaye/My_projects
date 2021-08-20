@@ -28,3 +28,9 @@ dist
 *.7z
 *log*
 *ckpt*
+*.csv
+*.excel
+*xml*
+*.prototxt
+*caffe*
+*.bat
