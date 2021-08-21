@@ -25,12 +25,14 @@ def get_argparser():
     parser.add_argument("--input", type=str, default='test_images', required=True,
                         help="单张图片或文件夹的路径")
 
-    parser.add_argument("--model", type=str, default='deeplabv3plus_resnet101',
+    # 选择网络结构（为deeplabv3/deeplabv3+ 提供各种backbone)
+    parser.add_argument("--model", type=str, default='deeplabv3plus_mobilenetv3',
                         choices=['deeplabv3_resnet50',  'deeplabv3plus_resnet50',
                                  'deeplabv3_resnet101', 'deeplabv3plus_resnet101',
-                                 'deeplabv3_mobilenet', 'deeplabv3plus_mobilenet'], help='选择网络结构')
+                                 'deeplabv3_mobilenet', 'deeplabv3plus_mobilenet',
+                                 'deeplabv3plus_mobilenetv3'])
     
-    parser.add_argument("--ckpt", default='checkpoints/best_deeplabv3plus_resnet101_cityscapes_os16.pth.tar', type=str,
+    parser.add_argument("--ckpt", default='checkpoints/best_deeplabv3plus_mobilenetv3_cityscapes_os16.pth.tar', type=str,
                         help="对应的权重文件")
                         
     return parser
@@ -63,7 +65,8 @@ def main():
         'deeplabv3_resnet101': network.deeplabv3_resnet101,
         'deeplabv3plus_resnet101': network.deeplabv3plus_resnet101,
         'deeplabv3_mobilenet': network.deeplabv3_mobilenet,
-        'deeplabv3plus_mobilenet': network.deeplabv3plus_mobilenet
+        'deeplabv3plus_mobilenet': network.deeplabv3plus_mobilenet,
+        'deeplabv3plus_mobilenetv3': network.deeplabv3plus_mobilenetv3
     }
 
     model = model_map[opts.model](num_classes=opts.num_classes, output_stride=16, pretrained_backbone=False)
@@ -104,6 +107,8 @@ def main():
 
             t1 = time.time()
             pred = model(img)
+            if opts.model=='deeplabv3plus_mobilenetv3':
+                pred = pred['out']
             time_list.append(time.time() - t1)
 
             pred = pred.max(1)[1].cpu().numpy()[0] # HW

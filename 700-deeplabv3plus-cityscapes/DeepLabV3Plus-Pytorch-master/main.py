@@ -34,10 +34,11 @@ def get_argparser():
                         help="num classes (default: None)")
 
     # 选择网络结构（为deeplabv3/deeplabv3+ 提供各种backbone)
-    parser.add_argument("--model", type=str, default='deeplabv3plus_mobilenet',
+    parser.add_argument("--model", type=str, default='deeplabv3plus_mobilenetv3',
                         choices=['deeplabv3_resnet50',  'deeplabv3plus_resnet50',
                                  'deeplabv3_resnet101', 'deeplabv3plus_resnet101',
-                                 'deeplabv3_mobilenet', 'deeplabv3plus_mobilenet'])
+                                 'deeplabv3_mobilenet', 'deeplabv3plus_mobilenet',
+                                 'deeplabv3plus_mobilenetv3'])
 
 
 
@@ -58,8 +59,8 @@ def get_argparser():
     parser.add_argument("--step_size", type=int, default=10000)
     parser.add_argument("--crop_val", action='store_true', default=False,
                         help='crop validation (default: False)')
-    parser.add_argument("--batch_size", type=int, default=16,
-                        help='batch size (default: 16)')
+    parser.add_argument("--batch_size", type=int, default=2,
+                        help='batch size')
     parser.add_argument("--val_batch_size", type=int, default=2,#4,
                         help='batch size for validation (default: 4)')
     parser.add_argument("--crop_size", type=int, default=768)
@@ -125,6 +126,8 @@ def validate(opts, model, loader, device, metrics, ret_samples_ids=None):
             labels = labels.to(device, dtype=torch.long)
 
             outputs = model(images)
+            if opts.model=='deeplabv3plus_mobilenetv3':
+                outputs = outputs['out']
             preds = outputs.detach().max(dim=1)[1].cpu().numpy()
             targets = labels.cpu().numpy()
 
@@ -167,7 +170,8 @@ def main():
         'deeplabv3_resnet101': network.deeplabv3_resnet101,
         'deeplabv3plus_resnet101': network.deeplabv3plus_resnet101,
         'deeplabv3_mobilenet': network.deeplabv3_mobilenet,
-        'deeplabv3plus_mobilenet': network.deeplabv3plus_mobilenet
+        'deeplabv3plus_mobilenet': network.deeplabv3plus_mobilenet,
+        'deeplabv3plus_mobilenetv3': network.deeplabv3plus_mobilenetv3
     }
 
     model = model_map[opts.model](num_classes=opts.num_classes, output_stride=opts.output_stride,pretrained_backbone=False)
@@ -261,6 +265,8 @@ def main():
 
             optimizer.zero_grad()
             outputs = model(images)
+            if opts.model=='deeplabv3plus_mobilenetv3':
+                outputs = outputs['out']
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()

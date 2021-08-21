@@ -1,4 +1,5 @@
 from torch import nn
+import torch
 from torchvision.models.utils import load_state_dict_from_url
 import torch.nn.functional as F
 
@@ -184,3 +185,13 @@ def mobilenet_v2(pretrained=False, progress=True, **kwargs):
                                               progress=progress)
         model.load_state_dict(state_dict)
     return model
+
+
+
+
+
+if __name__=='__main__':
+    net = MobileNetV2(num_classes=19,output_stride=16)
+    x = torch.randn(2,3,224,224)
+    y = net(x)
+    print(y.size())
