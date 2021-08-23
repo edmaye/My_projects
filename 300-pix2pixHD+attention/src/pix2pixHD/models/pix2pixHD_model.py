@@ -8,15 +8,16 @@ from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
 import matplotlib.pyplot as plt
+from .edge_network import EDGELoss
 
 class Pix2PixHDModel(BaseModel):
     def name(self):
         return 'Pix2PixHDModel'
     
     def init_loss_filter(self, use_gan_feat_loss, use_vgg_loss):
-        flags = (True, use_gan_feat_loss, use_vgg_loss, True, True)
-        def loss_filter(g_gan, g_gan_feat, g_vgg, d_real, d_fake):
-            return [l for (l,f) in zip((g_gan,g_gan_feat,g_vgg,d_real,d_fake),flags) if f]
+        flags = (True, use_gan_feat_loss, use_vgg_loss, True, True, True)
+        def loss_filter(g_gan, g_gan_feat, g_vgg, g_edge, d_real, d_fake):
+            return [l for (l,f) in zip((g_gan,g_gan_feat,g_vgg, g_edge, d_real,d_fake),flags) if f]
         return loss_filter
     
     def initialize(self, opt):
@@ -69,7 +70,7 @@ class Pix2PixHDModel(BaseModel):
             if self.gen_features:
                 self.load_network(self.netE, 'E', opt.which_epoch, pretrained_path)              
 
-        # set loss functions and optimizers
+        # set loss functions and optimizers     
         if self.isTrain:
             if opt.pool_size > 0 and (len(self.gpu_ids)) > 1:
                 raise NotImplementedError("Fake Pool Not Implemented for MultiGPU")
@@ -83,10 +84,13 @@ class Pix2PixHDModel(BaseModel):
             self.criterionFeat = torch.nn.L1Loss()
             if not opt.no_vgg_loss:             
                 self.criterionVGG = networks.VGGLoss(self.gpu_ids)
-                
+
+
+            # 新增的边缘损失
+            self.criterionEDGE = EDGELoss()
         
             # Names so we can breakout loss
-            self.loss_names = self.loss_filter('G_GAN','G_GAN_Feat','G_VGG','D_real', 'D_fake')
+            self.loss_names = self.loss_filter('G_GAN','G_GAN_Feat','G_VGG','G_EDGE','D_real', 'D_fake')
 
             # initialize optimizers
             # optimizer G
@@ -176,7 +180,7 @@ class Pix2PixHDModel(BaseModel):
         pdb.set_trace()
         np.save(str('/media/bigdata/bc683079-36a6-4dbe-a9fa-96992b2c0c88/bigdata/mafurong/skeleton_fore/fake.npy'), fake_image1)"""
 
-        # Fake Detection and Loss
+        # Fake Detection and Loss         >>>>>>>> loss修改处 <<<<<<<<
         pred_fake_pool = self.discriminate(input_label, fake_image, use_pool=True)
         loss_D_fake = self.criterionGAN(pred_fake_pool, False)        
 
@@ -205,9 +209,13 @@ class Pix2PixHDModel(BaseModel):
         loss_G_VGG = 0
         if not self.opt.no_vgg_loss:
             loss_G_VGG = self.criterionVGG(fake_image, real_image) * self.opt.lambda_feat
+
+        # 计算边缘图损失
+        loss_G_EDGE = self.criterionEDGE(fake_image, real_image)
+        print(fake_image.shape, real_image.shape)
         
         # Only return the fake_B image if necessary to save BW
-        return [ self.loss_filter( loss_G_GAN, loss_G_GAN_Feat, loss_G_VGG, loss_D_real, loss_D_fake ), None if not infer else fake_image ]
+        return [ self.loss_filter( loss_G_GAN, loss_G_GAN_Feat, loss_G_VGG, loss_G_EDGE, loss_D_real, loss_D_fake ), None if not infer else fake_image ]
 
     def inference(self, label, segment):
         # Encode Inputs        
